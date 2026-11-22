@@ -1,0 +1,116 @@
+name: api-gateway
+
+x-gateway-env: &gateway-env
+  ENVIRONMENT: ${ENVIRONMENT:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-gateway}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-gateway}
+  REDIS_URL: redis://redis:6379/0
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+  JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-30}
+  RATE_LIMIT_ALGORITHM: ${RATE_LIMIT_ALGORITHM:-token_bucket}
+  TOKEN_BUCKET_CAPACITY: ${TOKEN_BUCKET_CAPACITY:-100}
+  TOKEN_BUCKET_REFILL_RATE: ${TOKEN_BUCKET_REFILL_RATE:-10}
+  SLIDING_WINDOW_LIMIT: ${SLIDING_WINDOW_LIMIT:-100}
+  SLIDING_WINDOW_SECONDS: ${SLIDING_WINDOW_SECONDS:-60}
+  USER_LIMIT_MULTIPLIER: ${USER_LIMIT_MULTIPLIER:-5}
+  IP_RATE_LIMIT_REQUESTS: ${IP_RATE_LIMIT_REQUESTS:-200}
+  IP_RATE_LIMIT_WINDOW_SECONDS: ${IP_RATE_LIMIT_WINDOW_SECONDS:-60}
+  AUTH_RATE_LIMIT_ATTEMPTS: ${AUTH_RATE_LIMIT_ATTEMPTS:-10}
+  AUTH_RATE_LIMIT_WINDOW_SECONDS: ${AUTH_RATE_LIMIT_WINDOW_SECONDS:-60}
+  TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-0}
+  PRODUCT_SERVICE_URL: http://products:8001
+  ORDER_SERVICE_URL: http://orders:8002
+  UPSTREAM_TIMEOUT_SECONDS: ${UPSTREAM_TIMEOUT_SECONDS:-5}
+  UPSTREAM_CONNECT_TIMEOUT_SECONDS: ${UPSTREAM_CONNECT_TIMEOUT_SECONDS:-2}
+  PRODUCT_SERVICE_TIMEOUT_SECONDS: ${PRODUCT_SERVICE_TIMEOUT_SECONDS:-${UPSTREAM_TIMEOUT_SECONDS:-5}}
+  ORDER_SERVICE_TIMEOUT_SECONDS: ${ORDER_SERVICE_TIMEOUT_SECONDS:-${UPSTREAM_TIMEOUT_SECONDS:-5}}
+  MAX_REQUEST_BODY_BYTES: ${MAX_REQUEST_BODY_BYTES:-1048576}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gateway}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-gateway}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Creates the separate `gateway_test` database on first start (used by the test suite).
+      - ./docker/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    # Rate-limit state is ephemeral, so persistence is switched off.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  products:
+    build: ./services/products
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  orders:
+    build: ./services/orders
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  gateway:
+    build:
+      context: ./gateway
+      target: base
+    environment: *gateway-env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      products: { condition: service_healthy }
+      orders: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Explicit setup step:  docker compose run --rm migrate
+  migrate:
+    build:
+      context: ./gateway
+      target: base
+    profiles: ["setup"]
+    environment: *gateway-env
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # Test suite:  docker compose run --rm test
+  test:
+    build:
+      context: ./gateway
+      target: dev
+    profiles: ["test"]
+    environment:
+      TEST_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-gateway}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/gateway_test
+      TEST_REDIS_URL: redis://redis:6379/15
+      REQUIRE_INFRA: "1" # fail instead of skipping if PostgreSQL/Redis are unreachable
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+volumes:
+  pgdata:
