@@ -7,12 +7,12 @@ are skipped, unless REQUIRE_INFRA=1 is set (as in the docker-compose `test` serv
 case they fail.
 """
 
-import os
 import asyncio
-from pathlib import Path
+import os
 from collections.abc import Callable
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -25,7 +25,7 @@ from redis.connection import parse_url
 from redis.exceptions import AuthenticationError as RedisAuthenticationError
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
-from sqlalchemy import text
+from sqlalchemy import text, values
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -55,6 +55,7 @@ def migrate_test_database() -> None:
     )
     config.attributes["database_url"] = TEST_DATABASE_URL
     command.upgrade(config, "head")
+
 
 @dataclass
 class Infra:
@@ -139,6 +140,8 @@ def make_settings() -> Callable[..., Settings]:
             "ip_rate_limit_requests": 10_000,
             "auth_rate_limit_attempts": 1000,
             "upstream_timeout_seconds": 2.0,
+            "product_service_url": "http://products:8001",
+            "order_service_url": "http://orders:8002",
         }
         values.update(overrides)
         return Settings(**{"_env_file": None, **values})
@@ -202,12 +205,10 @@ def validate_test_targets(database_url: str, redis_url: str) -> None:
 
     if database != "gateway_test":
         raise RuntimeError(
-            "Refusing destructive test setup: "
-            "TEST_DATABASE_URL must target 'gateway_test'."
+            "Refusing destructive test setup: TEST_DATABASE_URL must target 'gateway_test'."
         )
 
     if redis_db != 15:
         raise RuntimeError(
-            "Refusing destructive test setup: "
-            "TEST_REDIS_URL must target Redis database 15."
+            "Refusing destructive test setup: TEST_REDIS_URL must target Redis database 15."
         )

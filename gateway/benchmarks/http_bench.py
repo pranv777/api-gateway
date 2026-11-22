@@ -208,9 +208,7 @@ async def main() -> None:
     print(json.dumps(report, indent=2))
     print(f"\nJSON written to {output}")
     if args.scenario == "correctness" and not results["passed"]:
-        raise SystemExit(
-            "FAIL: " + "; ".join(results["problems"])
-        )
+        raise SystemExit("FAIL: " + "; ".join(results["problems"]))
 
 
 if __name__ == "__main__":

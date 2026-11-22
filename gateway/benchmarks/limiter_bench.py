@@ -53,17 +53,12 @@ async def measure(operation, total: int, concurrency: int) -> dict:
         for _ in range(count):
             started = time.perf_counter()
             await operation()
-            latencies.append(
-                (time.perf_counter() - started) * 1000
-            )
+            latencies.append((time.perf_counter() - started) * 1000)
 
     started = time.perf_counter()
 
     await asyncio.gather(
-        *(
-            worker(per_worker + (1 if index < remainder else 0))
-            for index in range(worker_count)
-        )
+        *(worker(per_worker + (1 if index < remainder else 0)) for index in range(worker_count))
     )
 
     elapsed = max(time.perf_counter() - started, 1e-12)

@@ -1,8 +1,8 @@
 """Application settings, loaded from environment variables (and an optional .env file)."""
 
 import math
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr, model_validator

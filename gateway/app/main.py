@@ -7,6 +7,7 @@ import logging
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from http.cookiejar import CookieJar
 
 import httpx
 from fastapi import FastAPI, Request
@@ -17,13 +18,12 @@ from sqlalchemy import text
 
 from app.api import analytics, api_keys, auth, proxy
 from app.core.config import Settings
+from app.core.cookies import RejectAllCookiesPolicy
 from app.core.logs import configure_logging
 from app.core.middleware import RequestIdMiddleware
 from app.core.rate_limit import RateLimiter
-from app.core.cookies import RejectAllCookiesPolicy
 from app.db.session import create_engine, create_sessionmaker
 from app.services.routing import build_routes
-from http.cookiejar import CookieJar
 
 logger = logging.getLogger("app")
 
@@ -104,9 +104,24 @@ def create_app(
         return JSONResponse({"detail": "Rate limiter unavailable"}, status_code=503)
 
     @app.exception_handler(Exception)
-    async def unhandled_error_handler(request: Request,exc: Exception,) -> JSONResponse:
-        request_id = (getattr(request.state, "request_id", None)or uuid.uuid4().hex)
-        logger.exception("unhandled error",extra={"path": request.url.path,"request_id": request_id,},)
-        return JSONResponse({"detail": "Internal server error"},status_code=500,headers={"X-Request-ID": request_id},)
+    async def unhandled_error_handler(
+        request: Request,
+        exc: Exception,
+    ) -> JSONResponse:
+        request_id = getattr(request.state, "request_id", None) or uuid.uuid4().hex
+
+        logger.exception(
+            "unhandled error",
+            extra={
+                "path": request.url.path,
+                "request_id": request_id,
+            },
+        )
+
+        return JSONResponse(
+            {"detail": "Internal server error"},
+            status_code=500,
+            headers={"X-Request-ID": request_id},
+        )
 
     return app

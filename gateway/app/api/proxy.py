@@ -121,8 +121,5 @@ for method in PROXY_METHODS:
         dependencies=[Depends(enforce_ip_limit)],
         operation_id=f"proxy_{method.lower()}_path",
         summary=f"Forward a {method} request to an upstream service",
-        description=(
-            "Requires an X-API-Key header. "
-            "service is products or orders."
-        ),
+        description=("Requires an X-API-Key header. service is products or orders."),
     )

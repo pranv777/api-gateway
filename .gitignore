@@ -1,20 +1,57 @@
+# Local environment files; keep configuration examples
 .env
 .env.*
 !.env.example
+!.env.*.example
 
+# Python bytecode
 __pycache__/
 *.py[cod]
+
+# Virtual environments
 .venv/
 venv/
+env/
+
+# Test, lint, and type-check caches
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+.tox/
+.nox/
+
+# Coverage reports
 .coverage
+.coverage.*
 htmlcov/
-*.egg-info/
+coverage.xml
+coverage.json
+pytest-report.xml
+
+# Build and packaging output
 build/
 dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
 
-gateway/benchmarks/results/
+# Generated benchmark and test artifacts
+/gateway/benchmarks/results/
+/gateway/artifacts/
+
+# Logs
+*.log
+
+# Editor settings and temporary files
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
+
+# Operating system files
 .DS_Store
+Thumbs.db
+Desktop.ini
