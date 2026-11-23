@@ -34,6 +34,10 @@ keyed by identity.
 
 ## Quick start
 
+**Which `.env`?** The root `.env` (from `.env.example`) configures `docker compose`.
+Only if you run the gateway outside Docker, also copy `gateway/.env.example` to `gateway/.env`
+and use literal values there (no `${...}` expansion).
+
 Requires Docker with Compose v2.
 
 ```bash
@@ -169,19 +173,37 @@ docker compose run --rm test ruff check . && docker compose run --rm test ruff f
 If your PostgreSQL volume already existed before you first ran this, the `gateway_test`
 database was not auto-created: `docker compose exec postgres createdb -U gateway gateway_test`.
 
-**Locally:**
+**Locally (macOS / Linux):**
 
 ```bash
 cd gateway
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"  # or: pip install ".[dev]"
+pip install -e ".[dev]"
+
+export TEST_DATABASE_URL="postgresql+asyncpg://gateway:YOUR_PASSWORD@127.0.0.1:5433/gateway_test"
+export TEST_REDIS_URL="redis://127.0.0.1:6379/15"
+export REQUIRE_INFRA=1
+
+python -m pytest
+python -m pytest --cov=app --cov-report=term-missing
+ruff check . && ruff format --check .
+```
+
+**Locally (Windows PowerShell):**
+
+```powershell
+cd gateway
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+
 $env:TEST_DATABASE_URL = "postgresql+asyncpg://gateway:YOUR_PASSWORD@127.0.0.1:5433/gateway_test"
 $env:TEST_REDIS_URL = "redis://127.0.0.1:6379/15"
 $env:REQUIRE_INFRA = "1"
 
 python -m pytest
-pytest --cov=app --cov-report=term-missing
-ruff check . && ruff format --check .
+python -m pytest --cov=app --cov-report=term-missing
+ruff check .; ruff format --check .
 ```
 
 Without reachable PostgreSQL/Redis the integration tests are *skipped* (set `REQUIRE_INFRA=1` to
@@ -190,8 +212,6 @@ make that a failure). The unit tests in `tests/test_security.py` need neither.
 ## Benchmarks
 
 Two small scripts produce real, reproducible numbers. They write JSON to `gateway/benchmarks/results/`.
-**No results are included in this repository on purpose: run them on your own machine and paste
-your measured output below.**
 
 ```bash
 # 1) Rate-limiter overhead (one Lua check vs. a bare Redis PING)
@@ -215,23 +235,69 @@ docker compose run --rm gateway python -m benchmarks.http_bench correctness \
 
 ### Recorded results
 
-_Not yet measured. When you run the benchmarks, record:_
+Benchmarks ran in Docker on WSL2 using Python 3.12.16, with 12 logical CPUs
+reported by the benchmark environment. The client, gateway, Redis, PostgreSQL,
+and upstream services shared the same machine.
 
-| Item | Value |
-|---|---|
-| Test environment (CPU, RAM, OS, Docker version) | |
-| Concurrent clients / total requests | |
-| p50 / p95 latency through the gateway | |
-| p50 / p95 latency direct to upstream | |
-| Rate-limiter overhead (limiter p50 − Redis PING p50) | |
-| Accepted vs. rejected requests in the burst test, and whether the limit was respected | |
-| Error counts | |
+These are local measurements, not production capacity estimates.
 
-Note that the benchmark client, gateway, Redis, PostgreSQL and upstream all share one machine in
-this setup, so absolute numbers reflect that and are best used for relative comparison.
+#### HTTP latency and throughput
+
+Three runs were performed with 5,000 requests per target and 10 concurrent
+clients. Values below show the range across those runs.
+
+| Metric | Through gateway | Direct to product service |
+|---|---:|---:|
+| Throughput | 166.0–185.1 requests/sec | 520.4–567.3 requests/sec |
+| p50 latency | 50.47–56.46 ms | 12.19–13.99 ms |
+| p95 latency | 78.60–87.70 ms | 33.72–37.40 ms |
+| p99 latency | 97.27–109.99 ms | 50.83–65.67 ms |
+| Mean latency | 53.92–60.14 ms | 16.82–18.34 ms |
+| Successful requests | 15,000 / 15,000 | 15,000 / 15,000 |
+| Rate-limit rejections | 0 | 0 |
+| Other errors | 0 | 0 |
+
+The difference between the average mean latencies was approximately 39.81 ms.
+Throughput was measured at concurrency 10 and does not represent maximum
+system capacity. Percentiles were calculated separately for each run.
+
+#### Sliding-window correctness
+
+The API-key limit was configured to 100 requests per 60 seconds. IP and user
+limits were raised to prevent them from interfering with the API-key test.
+
+| Metric | Result |
+|---|---:|
+| Total requests | 1,000 |
+| Concurrent clients | 100 |
+| Elapsed time | 4.362 seconds |
+| Accepted requests (`200`) | 100 |
+| Rejected requests (`429`) | 900 |
+| Unexpected errors | 0 |
+| Maximum permitted requests | 100 |
+| Result | Passed |
+
+The burst completed within one window and accepted exactly the configured
+capacity. This validates the tested burst scenario; it does not establish
+correctness for every possible traffic pattern.
+
+#### Rate-limiter microbenchmark
+
+Each scenario used 20,000 operations and concurrency 20.
+
+| Scenario | Operations/sec | p50 | p95 | p99 |
+|---|---:|---:|---:|---:|
+| Redis PING baseline | 12,356.1 | 1.531 ms | 1.861 ms | 2.666 ms |
+| Token bucket | 9,275.2 | 2.047 ms | 2.726 ms | 4.247 ms |
+| Sliding window | 8,557.9 | 2.173 ms | 3.229 ms | 4.433 ms |
+
+The difference in median latency relative to Redis PING was 0.516 ms for
+token bucket and 0.642 ms for sliding window. These differences include
+client and Redis round-trip costs and are not isolated Lua execution times.
+
+Benchmark JSON output is written to `gateway/benchmarks/results/`.
 
 ## Out of scope
 
 No frontend, Nginx, Prometheus/Grafana, Kubernetes, service discovery, load balancing, tracing,
-circuit breakers, retries, OAuth, refresh tokens, billing or RBAC. The optional enhancements
-(daily quotas, response caching) are intentionally not implemented.
+circuit breakers, retries, OAuth, refresh tokens, billing or RBAC.

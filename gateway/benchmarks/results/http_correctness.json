@@ -1,0 +1,22 @@
+{
+  "scenario": "correctness",
+  "environment": {
+    "python": "3.12.16",
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+    "cpu_count": 12
+  },
+  "results": {
+    "algorithm": "sliding_window",
+    "configured_limit": 100,
+    "burst_requests": 1000,
+    "concurrency": 100,
+    "elapsed_seconds": 4.362,
+    "accepted_200": 100,
+    "rejected_429": 900,
+    "other_or_failed": 0,
+    "max_permitted_by_limit": 100,
+    "limit_respected": true,
+    "passed": true,
+    "problems": []
+  }
+}

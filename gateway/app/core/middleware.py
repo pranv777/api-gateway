@@ -1,7 +1,7 @@
 """Pure-ASGI middleware."""
 
-import uuid
 import time
+import uuid
 
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send

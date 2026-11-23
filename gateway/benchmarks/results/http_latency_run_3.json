@@ -1,0 +1,32 @@
+{
+  "scenario": "latency",
+  "environment": {
+    "python": "3.12.16",
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+    "cpu_count": 12
+  },
+  "results": {
+    "through_gateway": {
+      "total_requests": 5000,
+      "status_200": 5000,
+      "status_429": 0,
+      "other_or_failed": 0,
+      "requests_per_second": 166.0,
+      "p50_ms": 56.46,
+      "p95_ms": 87.7,
+      "p99_ms": 108.24,
+      "mean_ms": 60.14
+    },
+    "direct_to_upstream": {
+      "total_requests": 5000,
+      "status_200": 5000,
+      "status_429": 0,
+      "other_or_failed": 0,
+      "requests_per_second": 540.8,
+      "p50_ms": 12.5,
+      "p95_ms": 34.55,
+      "p99_ms": 50.83,
+      "mean_ms": 17.63
+    }
+  }
+}

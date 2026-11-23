@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    MetaData,
     String,
     Uuid,
     func,
@@ -21,8 +22,14 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+NAMING_CONVENTION = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+}
+
+
 class Base(DeclarativeBase):
-    pass
+    metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
 class User(Base):

@@ -103,7 +103,7 @@ def build_upstream_url(
     for segment in rest.split("/"):
         if (
             segment in (".", "..")
-            or any(char in segment for char in "\\?#")
+            or any(char in segment for char in "\\?#%")
             or any(ord(char) < 32 or ord(char) == 127 for char in segment)
         ):
             raise InvalidPathError(rest)

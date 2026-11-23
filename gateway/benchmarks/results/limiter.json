@@ -1,0 +1,35 @@
+{
+  "environment": {
+    "python": "3.12.16",
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+    "cpu_count": 12
+  },
+  "concurrency": 20,
+  "requests_per_scenario": 20000,
+  "results": {
+    "redis_ping_baseline": {
+      "operations": 20000,
+      "ops_per_second": 12356.1,
+      "p50_ms": 1.531,
+      "p95_ms": 1.861,
+      "p99_ms": 2.666,
+      "mean_ms": 1.601
+    },
+    "token_bucket": {
+      "operations": 20000,
+      "ops_per_second": 9275.2,
+      "p50_ms": 2.047,
+      "p95_ms": 2.726,
+      "p99_ms": 4.247,
+      "mean_ms": 2.153
+    },
+    "sliding_window": {
+      "operations": 20000,
+      "ops_per_second": 8557.9,
+      "p50_ms": 2.173,
+      "p95_ms": 3.229,
+      "p99_ms": 4.433,
+      "mean_ms": 2.335
+    }
+  }
+}
