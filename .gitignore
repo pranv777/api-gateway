@@ -38,7 +38,11 @@ dist/
 pip-wheel-metadata/
 
 # Generated benchmark and test artifacts
-/gateway/benchmarks/results/
+/gateway/benchmarks/results/*
+!/gateway/benchmarks/results/http_latency.json
+!/gateway/benchmarks/results/http_latency_run_[123].json
+!/gateway/benchmarks/results/http_correctness.json
+!/gateway/benchmarks/results/limiter.json
 /gateway/artifacts/
 
 # Logs

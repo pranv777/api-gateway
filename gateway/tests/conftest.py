@@ -25,7 +25,7 @@ from redis.connection import parse_url
 from redis.exceptions import AuthenticationError as RedisAuthenticationError
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
-from sqlalchemy import text, values
+from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,

@@ -18,11 +18,20 @@ def test_build_upstream_url_uses_fixed_host_and_prefix(make_settings):
     assert str(build_upstream_url(route, "", "")) == "http://products:8001/products"
 
 
-@pytest.mark.parametrize("rest", ["..", "5/../../orders", "./x", "a\\b", "a\x00b"])
+@pytest.mark.parametrize(
+    "rest", ["..", "5/../../orders", "./x", "a\\b", "a\x00b", "%2e%2e", "5/%2E%2E/x", "a%2fb"]
+)
 def test_build_upstream_url_rejects_unsafe_paths(make_settings, rest):
     route = build_routes(make_settings())["products"]
     with pytest.raises(InvalidPathError):
         build_upstream_url(route, rest, "")
+
+
+async def test_double_encoded_dot_segments_are_rejected(client, upstream):
+    _, headers = await _authed(client)
+    response = await client.get("/api/products/%252e%252e/x", headers=headers)
+    assert response.status_code == 400
+    assert upstream.requests == []
 
 
 def test_an_absolute_url_in_the_path_cannot_change_the_destination(make_settings):
